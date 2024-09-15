@@ -180,7 +180,8 @@ def mess(message):
     msg = bot.reply_to(message, '<strong>[~]-Loading.... 🥸</strong>', parse_mode="HTML")
     time.sleep(1)
     results = [
-        f"[~]- Captcha = {captcha}",
-        f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}",
-        f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}",
-        f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}\n\n[~]- Bot By = <a href='tg://openmessage?user_id=
+    f"[~]- Captcha = {captcha}",
+    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}",
+    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}",
+    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}\n\n[~]- Bot By = <a href='tg://openmessage?user_id=1316255100'>Jukerhenapadega</a>"
+    ]
