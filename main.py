@@ -2,21 +2,18 @@ import telebot
 import os
 import time
 import requests
+import json
 from faker import Faker
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Initialize Faker
+fake = Faker()
 
-# Bot token
-bot_token = os.getenv('BOT_TOKEN')
+# Bot token (replace YOUR_BOT_TOKEN with your actual bot token)
+bot_token = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
 bot = telebot.TeleBot(bot_token)
 
 # In-memory storage for registered users
 registered_users = set()
-
-# Initialize Faker
-fake = Faker()
 
 # Luhn Algorithm for Credit Card Validation
 def luhn_check(card_number):
@@ -45,7 +42,6 @@ def start(message):
 # Register Command
 @bot.message_handler(commands=['register'])
 def register(message):
-    # Register user as owner
     registered_users.add(message.from_user.id)
     bot.send_message(message.chat.id, "You have been registered as an owner and can now use all commands.")
 
@@ -55,9 +51,7 @@ def cmds_command(message):
     text = ("─ BITTU CHECKER COMMANDS ─\n\n"
             "➣ Check Info [✅]\nUsage: /info\n\n"
             "➣ Check BIN Info [✅]\nUsage: /bin xxxxxx\n\n"
-            "➣ Scrape CCS [✅]\nUsage: /scr username limit\n\n"
-            "➣ Check Gateway [✅]\nUsage: /gateway url\n\n"
-            "➣ Fake Data [✅]\nUsage: /fake country\n\n"
+            "➣ Generate Fake Details [✅]\nUsage: /fake\n\n"
             "Contact → @Jukerhenapadega")
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
@@ -73,7 +67,7 @@ def bin_command(message):
     url = f"https://lookup.binlist.net/{bin_number}"
     headers = {
         "Host": "lookup.binlist.net",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+        "Accept": "application/json"
     }
     try:
         response = requests.get(url, headers=headers)
@@ -164,52 +158,49 @@ def scrape_ccs(message):
     except Exception as e:
         bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text=f"An error occurred: {e}")
 
-# Gateway Checker Command
-@bot.message_handler(commands=['gateway'])
-def gateway_command(message):
-    args = message.text.split()
-    if len(args) < 2:
-        bot.reply_to(message, "Please provide a URL. Usage: /gateway url")
-        return
-
-    url = args[1]
+# Website Analysis Commands
+def check_captcha(url):
     try:
-        payment = check_credit_card_payment(url)
-        cloud = check_cloud_in_website(url)
-        captcha = check_captcha(url)
-        
-        text = (f"[~] Gateway Check Results:\n"
-                f"Payment Methods Detected: {payment}\n"
-                f"Cloud Service Detected: {cloud}\n"
-                f"Captcha Detected: {captcha}")
-        bot.send_message(message.chat.id, text, parse_mode="HTML")
-    except Exception as e:
-        bot.reply_to(message, f"Error: {e}")
+        response = requests.get(url)
+        return 'https://www.google.com/recaptcha/api' in response.text or 'captcha' in response.text
+    except requests.exceptions.RequestException:
+        return False
 
-# Fake Data Command
-@bot.message_handler(commands=['fake'])
-def fake_command(message):
-    args = message.text.split()
-    if len(args) < 2:
-        bot.reply_to(message, "Please provide a country code. Usage: /fake country_code")
-        return
-    
-    country_code = args[1]
-    fake_data = fake.address()  # Example: Generating fake address data
-    text = f"Fake data for {country_code}:\n{fake_data}"
-    bot.send_message(message.chat.id, text, parse_mode="HTML")
-
-# Helper functions for gateway checks (need to be implemented)
 def check_credit_card_payment(url):
-    # Implement credit card payment detection logic
-    return "Unknown"
+    try:
+        response = requests.get(url)
+        return any(payment_method in response.text for payment_method in ['stripe', 'Cybersource', 'paypal', 'authorize.net', 'Bluepay', 'Magento', 'woo', 'Shopify', 'adyan', 'Adyen', 'braintree', 'suqare', 'payflow'])
+    except requests.exceptions.RequestException:
+        return False
 
 def check_cloud_in_website(url):
-    # Implement cloud service detection logic
-    return "Unknown"
+    try:
+        response = requests.get(url)
+        return 'cloud' in response.text.lower()
+    except requests.exceptions.RequestException:
+        return False
 
-def check_captcha(url):
-    # Implement captcha detection logic
-    return "Unknown"
+# Generate Fake Details Command with country and emoji
+@bot.message_handler(commands=['fake'])
+def fake_command(message):
+    fake_name = fake.name()
+    fake_address = fake.address().replace("\n", ", ")
+    fake_email = fake.email()
+    fake_phone = fake.phone_number()
+    fake_country = fake.country()
+    # Add emoji flags based on country if available
+    country_signs = {
+        'United States': '🇺🇸',
+        'Canada': '🇨🇦',
+        'India': '🇮🇳',
+        'Germany': '🇩🇪',
+        'United Kingdom': '🇬🇧',
+        # Add more countries and their flags as needed
+    }
+    country_emoji = country_signs.get(fake_country, '')
 
-bot.polling
+    text = (f"─ GENERATED FAKE DETAILS ─\n\n"
+            f"Name: {fake_name}\n"
+            f"Address: {fake_address}\n"
+            f"Email: {fake_email}\n"
+            f"Phone
