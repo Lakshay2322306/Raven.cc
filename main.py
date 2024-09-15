@@ -10,8 +10,6 @@ load_dotenv()
 
 # Bot token
 bot_token = os.getenv('BOT_TOKEN')
-if not bot_token:
-    raise ValueError("BOT_TOKEN not found in environment variables.")
 bot = telebot.TeleBot(bot_token)
 
 # In-memory storage for registered users
@@ -47,6 +45,7 @@ def start(message):
 # Register Command
 @bot.message_handler(commands=['register'])
 def register(message):
+    # Register user as owner
     registered_users.add(message.from_user.id)
     bot.send_message(message.chat.id, "You have been registered as an owner and can now use all commands.")
 
@@ -158,4 +157,59 @@ def scrape_ccs(message):
                     os.remove(file)
                 except PermissionError as e:
                     bot.send_message(message.chat.id, f"Error deleting file: {e}")
-            else
+            else:
+                bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text="No cards found.")
+    except requests.exceptions.RequestException as e:
+        bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text=f"Request error: {e}")
+    except Exception as e:
+        bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text=f"An error occurred: {e}")
+
+# Gateway Checker Command
+@bot.message_handler(commands=['gateway'])
+def gateway_command(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Please provide a URL. Usage: /gateway url")
+        return
+
+    url = args[1]
+    try:
+        payment = check_credit_card_payment(url)
+        cloud = check_cloud_in_website(url)
+        captcha = check_captcha(url)
+        
+        text = (f"[~] Gateway Check Results:\n"
+                f"Payment Methods Detected: {payment}\n"
+                f"Cloud Service Detected: {cloud}\n"
+                f"Captcha Detected: {captcha}")
+        bot.send_message(message.chat.id, text, parse_mode="HTML")
+    except Exception as e:
+        bot.reply_to(message, f"Error: {e}")
+
+# Fake Data Command
+@bot.message_handler(commands=['fake'])
+def fake_command(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Please provide a country code. Usage: /fake country_code")
+        return
+    
+    country_code = args[1]
+    fake_data = fake.address()  # Example: Generating fake address data
+    text = f"Fake data for {country_code}:\n{fake_data}"
+    bot.send_message(message.chat.id, text, parse_mode="HTML")
+
+# Helper functions for gateway checks (need to be implemented)
+def check_credit_card_payment(url):
+    # Implement credit card payment detection logic
+    return "Unknown"
+
+def check_cloud_in_website(url):
+    # Implement cloud service detection logic
+    return "Unknown"
+
+def check_captcha(url):
+    # Implement captcha detection logic
+    return "Unknown"
+
+bot.polling
