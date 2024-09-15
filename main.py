@@ -6,7 +6,7 @@ import json
 from faker import Faker  # Make sure to install this package
 
 # Bot token
-bot_token = os.getenv('BOT_TOKEN', '7546565731:AAGbMnNVriBrHyAog4nYj32Pr1TJIt_681g')
+bot_token = os.getenv('BOT_TOKEN', '6345802203:AAEHT_F61T6k2ia0SqGZbypg-HyVwP1yTxY')
 bot = telebot.TeleBot(bot_token)
 
 # In-memory storage for registered users
