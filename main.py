@@ -3,6 +3,7 @@ import os
 import time
 import requests
 import json
+from faker import Faker  # Make sure to install this package
 
 # Bot token
 bot_token = os.getenv('BOT_TOKEN', '7546565731:AAGbMnNVriBrHyAog4nYj32Pr1TJIt_681g')
@@ -10,6 +11,9 @@ bot = telebot.TeleBot(bot_token)
 
 # In-memory storage for registered users
 registered_users = set()
+
+# Initialize Faker
+fake = Faker()
 
 # Luhn Algorithm for Credit Card Validation
 def luhn_check(card_number):
@@ -49,6 +53,8 @@ def cmds_command(message):
             "➣ Check Info [✅]\nUsage: /info\n\n"
             "➣ Check BIN Info [✅]\nUsage: /bin xxxxxx\n\n"
             "➣ Scrape CCS [✅]\nUsage: /scr username limit\n\n"
+            "➣ Check Gateway [✅]\nUsage: /gateway url\n\n"
+            "➣ Fake Data [✅]\nUsage: /fake country\n\n"
             "Contact → @Jukerhenapadega")
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
@@ -155,33 +161,31 @@ def scrape_ccs(message):
     except Exception as e:
         bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text=f"An error occurred: {e}")
 
-# Website Analysis Commands
-def check_captcha(url):
-    response = requests.get(url).text
-    return 'https://www.google.com/recaptcha/api' in response or 'captcha' in response
+# Gateway Checker Command
+@bot.message_handler(commands=['gateway'])
+def gateway_command(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Please provide a URL. Usage: /gateway url")
+        return
 
-def check_credit_card_payment(url):
-    response = requests.get(url)
-    return any(payment_method in response.text for payment_method in ['stripe', 'Cybersource', 'paypal', 'authorize.net', 'Bluepay', 'Magento', 'woo', 'Shopify', 'adyan', 'Adyen', 'braintree', 'suqare', 'payflow'])
-
-def check_cloud_in_website(url):
-    response = requests.get(url)
-    return 'cloud' in response.text.lower()
-
-@bot.message_handler(func=lambda m: True)
-def mess(message):
-    url = message.text
+    url = args[1]
     try:
+        payment = check_credit_card_payment(url)
+        cloud = check_cloud_in_website(url)
         captcha = check_captcha(url)
-    except:
-        captcha = 'False'
-    cloud = check_cloud_in_website(url)
-    payment = check_credit_card_payment(url)
-    msg = bot.reply_to(message, '<strong>[~]-Loading.... 🥸</strong>', parse_mode="HTML")
-    time.sleep(1)
-    results = [
-    f"[~]- Captcha = {captcha}",
-    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}",
-    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}",
-    f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}\n\n[~]- Bot By = <a href='tg://openmessage?user_id=1316255100'>Jukerhenapadega</a>"
-    ]
+        
+        text = (f"[~] Gateway Check Results:\n"
+                f"Payment Methods Detected: {payment}\n"
+                f"Cloud Service Detected: {cloud}\n"
+                f"Captcha Detected: {captcha}")
+        bot.send_message(message.chat.id, text, parse_mode="HTML")
+    except Exception as e:
+        bot.reply_to(message, f"Error: {e}")
+
+# Fake Data Command
+@bot.message_handler(commands=['fake'])
+def fake_command(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Please provide a country code. Usage: /fake country_code")
