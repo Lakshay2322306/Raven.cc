@@ -8,23 +8,47 @@ import json
 bot_token = os.getenv('BOT_TOKEN', '7546565731:AAGbMnNVriBrHyAog4nYj32Pr1TJIt_681g')
 bot = telebot.TeleBot(bot_token)
 
+# In-memory storage for registered users
+registered_users = set()
+
+# Luhn Algorithm for Credit Card Validation
+def luhn_check(card_number):
+    num_digits = len(card_number)
+    sum_digits = 0
+    is_second = False
+    for i in range(num_digits - 1, -1, -1):
+        digit = int(card_number[i])
+        if is_second:
+            digit = digit * 2
+            if digit > 9:
+                digit -= 9
+        sum_digits += digit
+        is_second = not is_second
+    return (sum_digits % 10 == 0)
+
 # Start Command
 @bot.message_handler(commands=['start'])
 def start(message):
     text = (f"─ BITTU CHECKER PANEL ─\n"
             f"⁕ Registered as ➞ @{message.from_user.username}\n"
             f"⁕ Use ➞ /cmds to show available commands.\n"
-            f"⁕ Owner ➞ @Jukerhenapadega | Update Logs ➞ @switchbladeupdate")
+            f"⁕ Owner ➞ @Jukerhenapadega")
     bot.send_message(message.chat.id, text, parse_mode="HTML")
+
+# Register Command
+@bot.message_handler(commands=['register'])
+def register(message):
+    # Register user as owner
+    registered_users.add(message.from_user.id)
+    bot.send_message(message.chat.id, "You have been registered as an owner and can now use all commands.")
 
 # Commands List
 @bot.message_handler(commands=['cmds'])
 def cmds_command(message):
     text = ("─ BITTU CHECKER COMMANDS ─\n\n"
-            "➣ Stripe Charge/Auth [✅]\nUsage: /chk cc|mm|yy|cvv\n\n"
-            "➣ Check SK Key [✅]\nUsage: /key sk_live\n\n"
             "➣ Check Info [✅]\nUsage: /info\n\n"
             "➣ Check BIN Info [✅]\nUsage: /bin xxxxxx\n\n"
+            "➣ Scrape CCS [✅]\nUsage: /scr username limit\n\n"
             "Contact → @Jukerhenapadega")
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
@@ -46,12 +70,12 @@ def bin_command(message):
         response = requests.get(url, headers=headers)
         data = response.json()
         
-        bank = data["bank"]["name"].upper()
-        name = data["country"]["name"].upper()
-        brand = data["brand"].upper()
-        emoji = data["country"]["emoji"]
-        scheme = data["scheme"].upper()
-        type = data["type"].upper()
+        bank = data.get("bank", {}).get("name", "").upper()
+        name = data.get("country", {}).get("name", "").upper()
+        brand = data.get("brand", "").upper()
+        emoji = data.get("country", {}).get("emoji", "")
+        scheme = data.get("scheme", "").upper()
+        type = data.get("type", "").upper()
 
         text = (f"⁕ ─ 𝗩𝗔𝗟𝗜𝗗 𝗕𝗜𝗡 ✅ ─ ⁕\n"
                 f"BIN: {bin_number}\n"
@@ -84,6 +108,10 @@ def id_command(message):
 # Scraping Command
 @bot.message_handler(commands=['scr'])
 def scrape_ccs(message):
+    if message.from_user.id not in registered_users:
+        bot.reply_to(message, "You need to register as an owner to use this command. Use /register to register.")
+        return
+
     args = message.text.split()
     if len(args) < 3:
         bot.reply_to(message, "Please provide both username and limit. Usage: /scr username limit")
@@ -99,8 +127,8 @@ def scrape_ccs(message):
         if 'error' in raw:
             bot.edit_message_text(chat_id=message.chat.id, message_id=msg.message_id, text=f"Error: {raw['error']}")
         else:
-            cards = raw['cards']
-            found = str(raw['found'])
+            cards = raw.get('cards', '')
+            found = str(raw.get('found', '0'))
             file = f'Scraped_by_@Jukerhenapadega.txt'
             
             if cards:
@@ -130,15 +158,11 @@ def scrape_ccs(message):
 # Website Analysis Commands
 def check_captcha(url):
     response = requests.get(url).text
-    if 'https://www.google.com/recaptcha/api' in response or 'captcha' in response:
-        return True
-    return False
+    return 'https://www.google.com/recaptcha/api' in response or 'captcha' in response
 
 def check_credit_card_payment(url):
     response = requests.get(url)
-    if any(payment_method in response.text for payment_method in ['stripe', 'Cybersource', 'paypal', 'authorize.net', 'Bluepay', 'Magento', 'woo', 'Shopify', 'adyan', 'Adyen', 'braintree', 'suqare', 'payflow']):
-        return True
-    return False
+    return any(payment_method in response.text for payment_method in ['stripe', 'Cybersource', 'paypal', 'authorize.net', 'Bluepay', 'Magento', 'woo', 'Shopify', 'adyan', 'Adyen', 'braintree', 'suqare', 'payflow'])
 
 def check_cloud_in_website(url):
     response = requests.get(url)
@@ -159,11 +183,4 @@ def mess(message):
         f"[~]- Captcha = {captcha}",
         f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}",
         f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}",
-        f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}\n\n[~]- Bot By = <a href='tg://openmessage?user_id=1316255100'>Jukerhenapadega</a>"
-    ]
-    for index, result in enumerate(results):
-        bot.edit_message_text(result, message.chat.id, msg.message_id, parse_mode='HTML')
-        time.sleep(index + 1)
-
-# Polling
-bot.polling()
+        f"[~]- Captcha = {captcha}\n\n[~]- Cloud = {cloud}\n\n[~]- Payment = {payment}\n\n[~]- Bot By = <a href='tg://openmessage?user_id=
